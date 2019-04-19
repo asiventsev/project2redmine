@@ -19,8 +19,8 @@ puts '', HDR, ('=' * HDR.scan(/./mu).size), ''
 # answer help request and exit
 chk !(ARGV & %w(h H -h -H /h /H ? -? /? help -help --help)).empty?, HELP
 # check execution request
-dry_run=!(ARGV & %w(e E -e -E /e /E exec -exec --exec execute -execute --execute)).empty?
-puts "DRY RUN\n\n" if dry_run
+DRY_RUN=!(ARGV & %w(e E -e -E /e /E exec -exec --exec execute -execute --execute)).empty?
+puts "DRY RUN\n\n" if DRY_RUN
 
 #---------------------------------------------------------------------
 # connect to .msp
@@ -119,10 +119,10 @@ case re.code
 end
 
 if rmp_id
-  #---------------------------------------------------------------------
+  #=====================================================================
   # new Redmine project creation
   #---------------------------------------------------------------------
-  if dry_run
+  if DRY_RUN
     # project creation requested - exit on dry run
     chk true, 'DRY RUN SUCCESS: new project to be created in Redmine'
   end
@@ -130,7 +130,7 @@ if rmp_id
   puts 'new Redmine project create'
 
 else
-  #---------------------------------------------------------------------
+  #=====================================================================
   # existing Redmine project update
   #---------------------------------------------------------------------
 
