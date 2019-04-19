@@ -20,8 +20,7 @@ To get msp project ready for publishing to Redmine or updating already published
 5. Create special task in MSP project named 'Redmine Synchronization' and put Redmine synchronization 
 settings to its Notes in YAML format according to the example:
 
-<pre><code>
-redmine_host: 192.168.10.23
+<pre><code>redmine_host: 192.168.10.23
 redmine_port: 3500
 redmine_api_key: d1e693e7670b1fc79378441d485b9608e4c2dc4c
 redmine_project_uuid: uute
@@ -36,17 +35,17 @@ If you want to connect your MSP project to existing Redmine project instead of c
 
 1. Add parameter redmine_project_id to settings list. 
 (It was not obvious how to get it from Redmine. Easy way is to get project in JSON format, for example, from URL `http://192.168.10.23:3500/projects/uute.json` for project described above.)
-2. Put real Redmine task IDs instead 0 to tasks to be synchronized. 
+2. Put real Redmine task IDs instead of 0 for tasks to be synchronized. 
 
 ## Synchronization
 
-1. Open your MSP project. (P2R connects to current active project.)
+1. Open your MSP project. (P2R authomatically connects to current active project via OLE.)
 2. Run script without command line parameters. It will perform dry run and report all changes to be made. (Not necessary.)
-3. Run script with -e parameter. It will perform real execution and making necessary changes to Redmine as well as MSP. 
+3. Run script with -e parameter. It will perform real execution and make necessary changes to Redmine as well as MSP. 
 
-Working directory does not matter. You can run script itself (if you have ruby installed) or compiled .EXE file from downloads folder. 
-(it does not require ruby installation). Compiled exe is just SFX archive with the same script plus ruby binaries and necessary libs.
+Working directory does not matter. You can run script itself (if you have ruby installed) or compiled .EXE file from downloads folder 
+(it does not require ruby installation). Compiled exe is just SFX archive with the same script plus necessary ruby binaries and libs.
 
-After creating new Redmine project P2R authomatically add sredmine_project_id to settings (do not forget to save the project!).
+After creating new Redmine project P2R authomatically adds `redmine_project_id` key to settings (do not forget to save the project!).
 
-P2R sets settings special task's dates to last synchronization dates on each run with execution. 
+P2R sets 'Redmine Synchronization' task's dates to last synchronization dates on each run with execution. 
