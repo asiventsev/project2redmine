@@ -26,7 +26,6 @@ redmine_api_key: d1e693e7670b1fc79378441d485b9608e4c2dc4c
 redmine_project_uuid: uute
 task_redmine_id_field: Text1
 resource_email_field: Text1
-msp_encoding: WINDOWS-1251
 </code></pre>
 
 That's all. The meaning of the parameters is clear from their names. Parameter `redmine_project_uuid` must be unique across the Redmine instance.
