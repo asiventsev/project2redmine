@@ -1,1 +1,4 @@
-Console script for MS Project to Redmine synchronization
+# Console script for MS Project to Redmine synchronization
+
+Bla bla
+
