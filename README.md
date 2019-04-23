@@ -14,9 +14,10 @@ P2R allows to choose tasks and team members (resources) to publish to Redmine.
 To get msp project ready for publishing to Redmine or updating already published:
 1. Choose Task custom text field for Redmine task ID, for example Text1.
 2. Put 0 in this field for tasks to be published to Redmine.
-3. Choose Resource custom text field for email, for example, Text1. 
-(Email will be used to identify Redmine customers which correspond to MSP resources.)
-4. Set emails for resources to be used in Redmine as team members.
+3. Choose Resource custom text field for Redmine team member ID, for example, Text1. 
+(ID will be used to identify Redmine project team members which correspond to MSP resources.)
+4. Set IDs for resources to be used in Redmine as team members.
+(Redmine team membership IDs are to be used. One could obtain these IDs from team members list in the Redmine project settings, for example, from URLs of Edit button. Of course, you should add all necessary members to project team after P2R wil create the project.)
 5. Create special task in MSP project named 'Redmine Synchronization' and put Redmine synchronization 
 settings to its Notes in YAML format according to the example:
 
@@ -25,7 +26,7 @@ redmine_port: 3500
 redmine_api_key: d1e693e7670b1fc79378441d485b9608e4c2dc4c
 redmine_project_uuid: uute
 task_redmine_id_field: Text1
-resource_email_field: Text1
+resource_redmine_id_field: Text1
 </code></pre>
 
 That's all. The meaning of the parameters is clear from their names. Parameter `redmine_project_uuid` must be unique across the Redmine instance.
@@ -34,7 +35,11 @@ If you want to connect your MSP project to existing Redmine project instead of c
 
 1. Add parameter redmine_project_id to settings list. 
 (It was not obvious how to get it from Redmine. Easy way is to get project in JSON format, for example, from URL `http://192.168.10.23:3500/projects/uute.json` for project described above.)
-2. Put real Redmine task IDs instead of 0 for tasks to be synchronized. 
+2. Put real Redmine task IDs instead of 0 for tasks to be synchronized.
+
+## Some limitations
+
+Redmine issue (task) can be appointed to one team member only so P2R expects no more than one synchronizable resourse per MSP project task. If more, an error will be reported and script stopped.
 
 ## Synchronization
 

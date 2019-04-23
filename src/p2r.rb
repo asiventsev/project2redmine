@@ -115,11 +115,34 @@ def set_mst_redmine_id(pak, mst, rmt_id); eval("mst.#{pak['task_redmine_id_field
 
 def process_issues pak, msp, rmp_id, force_task_creation = false
   rmt_id_field = "mst.#{pak['task_redmine_id_field']}"
+  rmu_id_field = "msr.#{pak['resource_redmine_id_field']}"
+  rmus = {}
+
   (1..msp.Tasks.Count).each do |i|
+
+    # check msp task
     next unless mst = msp.Tasks(i)
     rmt_id = eval(rmt_id_field)
-    next if rmt_id.empty? # task not marked for sync
-    rmt_id = rmt_id.to_i rescue 0
+    next unless rmt_id =~ /^\s*\d+\s*$/ # task not marked for sync
+    rmt_id = rmt_id.to_i
+
+    # check task resource appointment
+    #   we expect not more than one synchronizable appointment
+    msr_sync = nil
+    (1..mst.Resources.Count).each do |j|
+      next unless msr = mst.Resources(j)
+      rmu_id = eval(rmu_id_field)
+      next unless rmu_id =~ /^\s*\d+\s*$/ # resource not marked for sync
+      chk msr_sync, "ERROR: more than one sync resource for MSP task #{mst.ID} #{mst.Name}"
+      rmu_id = rmu_id.to_i
+      if rmus[rmu_id]
+        # resource already processed
+        msr_sync = rmus[rmu_id]
+      else
+        # check Redmine team member availability
+      end
+    end
+
     if rmt_id == 0 || force_task_creation
       # create new task
       unless DRY_RUN
@@ -151,6 +174,7 @@ def process_issues pak, msp, rmp_id, force_task_creation = false
       if changes.empty?
         puts "No changes for Task Redmine ##{rmt_id} from MSP #{mst.ID} #{mst.Name}"
       else
+        # apply changes
         changelist = changes.keys.join(', ')
         changes['notes'] = "Autoupdated by P2P at #{Time.now.strftime '%Y-%m-%d %H:%M'} (#{changelist})"
         if DRY_RUN
@@ -162,7 +186,9 @@ def process_issues pak, msp, rmp_id, force_task_creation = false
         end
       end
       set_mst_url pak, mst, rmt['id']
+
     end
+
   end
 end
 
