@@ -54,7 +54,7 @@ rescue
 end
 
 rmp_id = pak.delete 'redmine_project_id'
-missed_pars = %w(redmine_host redmine_api_key redmine_project_uuid task_redmine_id_field resource_email_field) - pak.keys
+missed_pars = %w(redmine_host redmine_api_key redmine_project_uuid task_redmine_id_field resource_redmine_id_field) - pak.keys
 
 chk !missed_pars.empty?, "ERROR: following settings not found in 'Redmine Sysncronization' task: #{missed_pars.sort.join ', '}"
 
@@ -116,30 +116,59 @@ def set_mst_redmine_id(pak, mst, rmt_id); eval("mst.#{pak['task_redmine_id_field
 def process_issues pak, msp, rmp_id, force_task_creation = false
   rmt_id_field = "mst.#{pak['task_redmine_id_field']}"
   rmu_id_field = "msr.#{pak['resource_redmine_id_field']}"
+  msp_title = msp.Title.clone.encode 'UTF-8'
   rmus = {}
 
   (1..msp.Tasks.Count).each do |i|
 
     # check msp task
     next unless mst = msp.Tasks(i)
+    mst_name = mst.Name.clone.encode 'UTF-8'
     rmt_id = eval(rmt_id_field)
     next unless rmt_id =~ /^\s*\d+\s*$/ # task not marked for sync
     rmt_id = rmt_id.to_i
 
     # check task resource appointment
     #   we expect not more than one synchronizable appointment
-    msr_sync = nil
+    rmu = nil
     (1..mst.Resources.Count).each do |j|
       next unless msr = mst.Resources(j)
       rmu_id = eval(rmu_id_field)
       next unless rmu_id =~ /^\s*\d+\s*$/ # resource not marked for sync
-      chk msr_sync, "ERROR: more than one sync resource for MSP task #{mst.ID} #{mst.Name}"
+      chk rmu, "ERROR: more than one sync resource for MSP task #{mst.ID} '#{mst_name}'"
       rmu_id = rmu_id.to_i
       if rmus[rmu_id]
         # resource already processed
-        msr_sync = rmus[rmu_id]
+        rmu = rmus[rmu_id]
       else
+        rmu = nil
         # check Redmine team member availability
+        re = rm_request pak, "/memberships/#{rmu_id}.json"
+        if re.code == '200'
+          rmu = JSON.parse( re.body )['membership'] rescue nil
+        else
+          rmu = nil
+        end
+        if rmu
+          # check membership project - skip if other
+          if rmu['project']['id'] == rmp_id
+            uname = rmu['user']['name']
+            # check membership name - warning if other
+            msr_name = msr.Name.clone.encode 'UTF-8'
+            unless rmu['user']['name'] == msr_name
+              puts "WARNING: membership ID=#{rmu_id} name '#{uname}' does not correspond to MSP resource name '#{msr_name}' (task ##{rmt_id} for #{mst.ID} '#{mst_name}')"
+            end
+            # anyway - OK
+            rmu = rmu['user']['id']
+            rmus[rmu_id] = rmu
+          else
+            puts "WARNING: membership ID=#{rmu_id} RM '#{rmu['user']['name']}' MSP '#{msr_name}' belongs to other project and will be ignored (task ##{rmt_id} for #{mst.ID} '#{mst_name}')"
+            rmu = nil
+          end
+        else
+          puts "WARNING: Redmine project team member with membership ID=#{rmu_id} MSP '#{msr_name}' not found and will be ignored (task ##{rmt_id} for #{mst.ID} '#{mst_name}')"
+        end
+
       end
     end
 
@@ -147,42 +176,46 @@ def process_issues pak, msp, rmp_id, force_task_creation = false
       # create new task
       unless DRY_RUN
         rmt = {
-            project_id: rmp_id, subject: mst.Name, description: "-----\nAutocreated by P2R from MSP task #{mst.ID} in MSP project #{msp.Name}\n-----\n",
-            start_date: mst.Start.strftime('%Y-%m-%d'), due_date: mst.Finish.strftime('%Y-%m-%d')
+            project_id: rmp_id, subject: mst_name, description: "-----\nAutocreated by P2R from MSP task #{mst.ID} in MSP project #{msp_title}\n-----\n",
+            start_date: mst.Start.strftime('%Y-%m-%d'), due_date: mst.Finish.strftime('%Y-%m-%d'),
+            assigned_to_id: rmu
         }
         rmt = rm_create pak, '/issues.json', 'issue', rmt,
-                        "ERROR: could not create Redmine task from #{mst.ID} #{mst.Name} for some reasons"
+                        "ERROR: could not create Redmine task from #{mst.ID} '#{mst_name}' for some reasons"
         # write new task number to MSP
         set_mst_redmine_id pak, mst, rmt['id']
         set_mst_url pak, mst, rmt['id']
+        puts "Created task Redmine ##{rmt['id']} from MSP #{mst.ID} '#{mst_name}'"
       else
         # keep task to be created
-        puts "Will create task #{mst.ID} #{mst.Name}"
+        puts "Will create task #{mst.ID} '#{mst_name}'"
       end
     else
       # update existing task
       #   check task availability
-      rmt = rm_get pak, "/issues/#{rmt_id}.json", 'issue', "ERROR: could not find Redmine task ##{rmt_id} for #{mst.ID} #{mst.Name}"
+      rmt = rm_get pak, "/issues/#{rmt_id}.json", 'issue', "ERROR: could not find Redmine task ##{rmt_id} for #{mst.ID} '#{mst_name}'"
       #   check for changes
       #     subject - Name, start_date - Start, due_date - Finish
       changes={}
-      changes['subject'] = mst.Name if rmt['subject'] != mst.Name.encode('UTF-8')
+      changes['assigned_to_id'] = rmu.to_s if rmu != (rmt['assigned_to'] ? rmt['assigned_to']['id'] : nil)
+      changes['subject'] = mst_name if rmt['subject'] != mst_name
       d = mst.Start.strftime('%Y-%m-%d')
       changes['start_date'] = d if rmt['start_date'] != d
       d = mst.Finish.strftime('%Y-%m-%d')
       changes['due_date'] = d if rmt['due_date'] != d
       if changes.empty?
-        puts "No changes for Task Redmine ##{rmt_id} from MSP #{mst.ID} #{mst.Name}"
+        puts "No changes for Task Redmine ##{rmt_id} from MSP #{mst.ID} '#{mst_name}'"
       else
         # apply changes
         changelist = changes.keys.join(', ')
         changes['notes'] = "Autoupdated by P2P at #{Time.now.strftime '%Y-%m-%d %H:%M'} (#{changelist})"
         if DRY_RUN
-          puts "Will update task Redmine ##{rmt_id} from MSP #{mst.ID} #{mst.Name} (#{changelist})"
+          puts "Will update task Redmine ##{rmt_id} from MSP #{mst.ID} '#{mst_name}' (#{changelist})"
+          puts changes.inspect
         else
           rm_update pak, "/issues/#{rmt['id']}.json", 'issue', {issue: changes},
-                    "ERROR: could not update Redmine task ##{rmt['id']} from #{mst.ID} #{mst.Name} for some reasons"
-          puts "Updated task Redmine ##{rmt_id} from MSP #{mst.ID} #{mst.Name} (#{changelist})"
+                    "ERROR: could not update Redmine task ##{rmt['id']} from #{mst.ID} '#{mst_name}' for some reasons"
+          puts "Updated task Redmine ##{rmt_id} from MSP #{mst.ID} '#{mst_name}' (#{changelist})"
         end
       end
       set_mst_url pak, mst, rmt['id']
@@ -206,20 +239,20 @@ else
   #---------------------------------------------------------------------
   if DRY_RUN
     # project creation requested - exit on dry run
-    chk true, "Will create new Redmine project #{pak['redmine_project_uuid']} from MSP project #{msp.Title}"
+    chk true, "Will create new Redmine project #{pak['redmine_project_uuid']} from MSP project #{msp_title}"
   end
 
   #---------------------------------------------------------------------
   # new Redmine project create
   #---------------------------------------------------------------------
-  rmp = {name: msp.Title, identifier: pak['redmine_project_uuid'], is_public: false}
+  rmp = {name: msp_title, identifier: pak['redmine_project_uuid'], is_public: false}
   rmp = rm_create pak, '/projects.json', 'project', rmp,
       'ERROR: could not create Redmine project for some reasons'
 
   # add rm project id to msp settings
   pak['redmine_project_id'] = rmp['id']
   settings_task.Notes = YAML.dump pak
-  puts "Created new Redmine project #{pak['redmine_project_uuid']} ##{rmp['id']} from MSP project #{msp.Title}"
+  puts "Created new Redmine project #{pak['redmine_project_uuid']} ##{rmp['id']} from MSP project #{msp_title}"
 
   #---------------------------------------------------------------------
   # add tasks to Redmine project

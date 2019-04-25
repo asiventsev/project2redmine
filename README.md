@@ -16,6 +16,7 @@ To get msp project ready for publishing to Redmine or updating already published
 2. Put 0 in this field for tasks to be published to Redmine.
 3. Choose Resource custom text field for Redmine team member ID, for example, Text1. 
 (ID will be used to identify Redmine project team members which correspond to MSP resources.)
+(Please do not use localized names of custom fields, use english names like TextN.) 
 4. Set IDs for resources to be used in Redmine as team members.
 (Redmine team membership IDs are to be used. One could obtain these IDs from team members list in the Redmine project settings, for example, from URLs of Edit button. Of course, you should add all necessary members to project team after P2R wil create the project.)
 5. Create special task in MSP project named 'Redmine Synchronization' and put Redmine synchronization 
@@ -29,7 +30,8 @@ task_redmine_id_field: Text1
 resource_redmine_id_field: Text1
 </code></pre>
 
-That's all. The meaning of the parameters is clear from their names. Parameter `redmine_project_uuid` must be unique across the Redmine instance.
+That's all. The meaning of the parameters is clear from their names. Parameter `redmine_project_uuid` must correspond Redmine rules which you could find on in settings pages of any Redmine project.
+If an 'Unprocessable Entry' error occurs on project creation it is probably due to incorrect project uuid.
 
 If you want to connect your MSP project to existing Redmine project instead of creating new one, please do the following:
 

@@ -56,6 +56,7 @@ end
 #-----------------------------------------------------------------------------------------------------
 def rm_get pak, path, entity, msg
 
+  rmp = nil
   re = rm_request pak, path
   chk (re.code!='200'), msg + "\n#{re.code} #{re.msg}\n\n"
   rmp = JSON.parse(re.body)[entity] rescue nil
@@ -69,6 +70,7 @@ end
 #-----------------------------------------------------------------------------------------------------
 def rm_create pak, path, entity, data, msg
 
+  rmp = nil
   re = rm_request pak, path, entity => data
   chk (re.code!='201'), msg + "\n#{re.code} #{re.msg}\n\n"
   rmp = JSON.parse(re.body)[entity] rescue nil
