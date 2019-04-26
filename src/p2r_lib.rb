@@ -30,10 +30,10 @@ def chk cond,msg;if cond;puts msg+"\n\n";exit 0;end;end
 #-----------------------------------------------------------------------------------------------------
 # REST to Redmine API
 #-----------------------------------------------------------------------------------------------------
-def rm_request pak, path, data = nil,method = nil, verbose = false
+def rm_request path, data = nil,method = nil, verbose = false
   reply = nil
-  hdrs = {'Content-Type'=>'application/json', 'X-Redmine-API-Key' => pak['redmine_api_key']}
-  reply = Net::HTTP.start(pak['redmine_host'], pak['redmine_port']) do |http|
+  hdrs = {'Content-Type'=>'application/json', 'X-Redmine-API-Key' => $settings['redmine_api_key']}
+  reply = Net::HTTP.start($settings['redmine_host'], $settings['redmine_port']) do |http|
     if data
       if !method || method == 'POST'
         puts "POST #{path}" if verbose
@@ -54,10 +54,10 @@ end
 #-----------------------------------------------------------------------------------------------------
 # REST get from Redmine API
 #-----------------------------------------------------------------------------------------------------
-def rm_get pak, path, entity, msg
+def rm_get path, entity, msg
 
   rmp = nil
-  re = rm_request pak, path
+  re = rm_request path
   chk (re.code!='200'), msg + "\n#{re.code} #{re.msg}\n\n"
   rmp = JSON.parse(re.body)[entity] rescue nil
   chk !rmp, msg + "\n#{re.body.inspect}\n\n"
@@ -68,10 +68,10 @@ end
 #-----------------------------------------------------------------------------------------------------
 # REST create to Redmine API
 #-----------------------------------------------------------------------------------------------------
-def rm_create pak, path, entity, data, msg
+def rm_create path, entity, data, msg
 
   rmp = nil
-  re = rm_request pak, path, entity => data
+  re = rm_request path, entity => data
   chk (re.code!='201'), msg + "\n#{re.code} #{re.msg}\n\n"
   rmp = JSON.parse(re.body)[entity] rescue nil
   chk !rmp, msg + "\n#{re.body.inspect}\n\n"
@@ -82,9 +82,10 @@ end
 #-----------------------------------------------------------------------------------------------------
 # REST update to Redmine API
 #-----------------------------------------------------------------------------------------------------
-def rm_update pak, path, entity, data, msg
+def rm_update path, data, msg
 
-  re = rm_request pak, path, data, 'PUT'
+  re = rm_request path, data, 'PUT'
+  puts re.body
   chk (re.code!='200'), msg + "\n#{re.code} #{re.msg}\n\n"
   return true
 
