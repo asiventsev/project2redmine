@@ -32,6 +32,8 @@ rescue
   chk true, msg
 end
 msp = pserver.ActiveProject
+msp_name = msp.Name.clone.encode 'UTF-8'
+
 chk !msp,msg
 
 #---------------------------------------------------------------------
@@ -116,8 +118,8 @@ def set_mst_redmine_id(pak, mst, rmt_id); eval("mst.#{pak['task_redmine_id_field
 def process_issues pak, msp, rmp_id, force_task_creation = false
   rmt_id_field = "mst.#{pak['task_redmine_id_field']}"
   rmu_id_field = "msr.#{pak['resource_redmine_id_field']}"
-  msp_title = msp.Title.clone.encode 'UTF-8'
   rmus = {}
+  msp_name = msp.Name.clone.encode 'UTF-8'
 
   (1..msp.Tasks.Count).each do |i|
 
@@ -176,7 +178,7 @@ def process_issues pak, msp, rmp_id, force_task_creation = false
       # create new task
       unless DRY_RUN
         rmt = {
-            project_id: rmp_id, subject: mst_name, description: "-----\nAutocreated by P2R from MSP task #{mst.ID} in MSP project #{msp_title}\n-----\n",
+            project_id: rmp_id, subject: mst_name, description: "-----\nAutocreated by P2R from MSP task #{mst.ID} in MSP project #{msp_name}\n-----\n",
             start_date: mst.Start.strftime('%Y-%m-%d'), due_date: mst.Finish.strftime('%Y-%m-%d'),
             assigned_to_id: rmu
         }
@@ -211,7 +213,6 @@ def process_issues pak, msp, rmp_id, force_task_creation = false
         changes['notes'] = "Autoupdated by P2P at #{Time.now.strftime '%Y-%m-%d %H:%M'} (#{changelist})"
         if DRY_RUN
           puts "Will update task Redmine ##{rmt_id} from MSP #{mst.ID} '#{mst_name}' (#{changelist})"
-          puts changes.inspect
         else
           rm_update pak, "/issues/#{rmt['id']}.json", 'issue', {issue: changes},
                     "ERROR: could not update Redmine task ##{rmt['id']} from #{mst.ID} '#{mst_name}' for some reasons"
@@ -239,20 +240,20 @@ else
   #---------------------------------------------------------------------
   if DRY_RUN
     # project creation requested - exit on dry run
-    chk true, "Will create new Redmine project #{pak['redmine_project_uuid']} from MSP project #{msp_title}"
+    chk true, "Will create new Redmine project #{pak['redmine_project_uuid']} from MSP project #{msp_name}"
   end
 
   #---------------------------------------------------------------------
   # new Redmine project create
   #---------------------------------------------------------------------
-  rmp = {name: msp_title, identifier: pak['redmine_project_uuid'], is_public: false}
+  rmp = {name: msp_name, identifier: pak['redmine_project_uuid'], is_public: false}
   rmp = rm_create pak, '/projects.json', 'project', rmp,
       'ERROR: could not create Redmine project for some reasons'
 
   # add rm project id to msp settings
   pak['redmine_project_id'] = rmp['id']
   settings_task.Notes = YAML.dump pak
-  puts "Created new Redmine project #{pak['redmine_project_uuid']} ##{rmp['id']} from MSP project #{msp_title}"
+  puts "Created new Redmine project #{pak['redmine_project_uuid']} ##{rmp['id']} from MSP project #{msp_name}"
 
   #---------------------------------------------------------------------
   # add tasks to Redmine project
