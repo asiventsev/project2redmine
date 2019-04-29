@@ -17,8 +17,8 @@ To get msp project ready for publishing to Redmine or updating already published
 3. Choose Resource custom text field for Redmine team member ID, for example, Text1. 
 (ID will be used to identify Redmine project team members which correspond to MSP resources.)
 (Please do not use localized names of custom fields, use english names like TextN.) 
-4. Set IDs for resources to be used in Redmine as team members.
-(Redmine team membership IDs are to be used. One could obtain these IDs from team members list in the Redmine project settings, for example, from URLs of Edit button. Of course, you should add all necessary members to project team after P2R wil create the project.)
+4. Set Redmine user IDs for resources to be used in Redmine as team members.
+(Memberships will be created authomatically. Ask Redmine admin for user IDs.)
 5. Create special task in MSP project named 'Redmine Synchronization' and put Redmine synchronization 
 settings to its Notes in YAML format according to the example:
 
@@ -27,11 +27,20 @@ redmine_port: 3500
 redmine_api_key: d1e693e7670b1fc79378441d485b9608e4c2dc4c
 redmine_project_uuid: uute
 task_redmine_id_field: Text1
+task_redmine_url_field: Text2
+task_default_redmine_tracker_id: 4
 resource_redmine_id_field: Text1
+resource_default_redmine_role_id: 4
 </code></pre>
 
-That's all. The meaning of the parameters is clear from their names. Parameter `redmine_project_uuid` must correspond Redmine rules which you could find on in settings pages of any Redmine project.
+That's all. The meaning of the parameters is clear from their names. 
+
+Parameter `redmine_project_uuid` must correspond Redmine rules which you could find on in settings pages of any Redmine project.
 If an 'Unprocessable Entry' error occurs on project creation it is probably due to incorrect project uuid.
+
+Parameter `task_default_redmine_tracker_id` is not required. If you omit it then Redmine's default tracker will be set.
+
+Parameter `task_redmine_url_field` is not required. If you define it then URL to Remine issue will be put to this field for each sync task.
 
 If you want to connect your MSP project to existing Redmine project instead of creating new one, please do the following:
 
