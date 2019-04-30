@@ -1,8 +1,9 @@
+# Copyright (c) 2019 NPO Karat
+# Author: Aleksei Siventsev
 #=====================================================================
 # Console Script for MS Project to Redmine synchronization
-# (c) A. Siventsev 2019
 #=====================================================================
-VER = '0.2 26/04/19'
+VER = '0.2 30/04/19'
 HDR = "Console Script for MS Project to Redmine synchronization v#{VER} (c) A. Siventsev 2019"
 
 require 'yaml'
@@ -20,7 +21,7 @@ puts '', HDR, ('=' * HDR.scan(/./mu).size), ''
 chk !(ARGV & %w(h H -h -H /h /H ? -? /? help -help --help)).empty?, HELP
 # check execution request
 DRY_RUN = (ARGV & %w(e E -e -E /e /E exec -exec --exec execute -execute --execute)).empty?
-puts "DRY RUN\n\n" if DRY_RUN
+puts "DRY RUN (add -e key for actual execution)\n\n" if DRY_RUN
 
 #---------------------------------------------------------------------
 # connect to .msp
@@ -128,12 +129,10 @@ chk !$dflt_tracker_id.is_a?(Integer), "ERROR: parameter task_default_redmine_tra
 rm_get "/roles/#{$dflt_role_id}.json", 'role', "ERROR: could not get default team role resource_default_redmine_role_id=#{$dflt_role_id}"
 
 #---------------------------------------------------------------------
-# load project memberships
+# util for loading project team
 #---------------------------------------------------------------------
-
 $team = {}
-if rmp_id
-  # for existing project only
+def load_team
   offset = 0
   loop do
     re = rm_request "/projects/#{$uuid}/memberships.json?offset=#{offset}"
@@ -146,11 +145,8 @@ if rmp_id
     end
     offset += re['limit']
   end
-else
-  # TODO - get current user and add to team in advance
-  puts rm_get '/users/current.json', 'user', 'ERROR: could not get current user'
 end
-abort
+
 #---------------------------------------------------------------------
 # some utils for msp custom fields editing
 #---------------------------------------------------------------------
@@ -229,7 +225,6 @@ def process_issue rmp_id, mst, force_new_task = false
         chk re.nil?, "ERROR: could not parse reply: Redmine user #{rmu_id} not found for resource in MSP task #{mst.ID} '#{mst_name}'"
         # create membership
         data = {user_id: rmu_id, role_ids: [$dflt_role_id]}
-        puts data
         member = rm_create "/projects/#{$uuid}/memberships.json", 'membership', data,
                          "ERROR: could not create Redmine project membership for user #{rmu_id}"
         puts "New membership created: #{rmu_id}"
@@ -344,7 +339,6 @@ if rmp_id
   #---------------------------------------------------------------------
 
   puts 'Existing Redmine project update'
-  process_issues rmp_id, false
 
 else
   #=====================================================================
@@ -370,9 +364,11 @@ else
   #---------------------------------------------------------------------
   # add tasks to Redmine project
   #---------------------------------------------------------------------
-  process_issues rmp['id'], true
 
 end
+
+load_team
+process_issues (rmp_id || rmp['id']), rmp_id.nil?
 
 puts "\n\n"
 
