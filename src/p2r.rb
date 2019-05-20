@@ -10,6 +10,7 @@ require 'yaml'
 require 'win32ole'
 require 'net/http'
 require 'json'
+require 'date'
 require './p2r_lib.rb'
 
 puts '', HDR, ('=' * HDR.scan(/./mu).size), ''
@@ -247,7 +248,7 @@ def process_issue rmp_id, mst, force_new_task = false, is_group = false
           assigned_to_id: rmu_id_ok, tracker_id: $dflt_tracker_id,
           parent_issue_id: (rmt_papa ? rmt_papa['id'] : '')
       }
-      rmt['done_ratio'] = mst.PercentComplete unless is_group
+      rmt['estimated_hours'] = mst.Work/60 unless is_group
       rmt = rm_create '/issues.json', 'issue', rmt,
                       "ERROR: could not create Redmine task from #{mst.ID} '#{mst_name}' for some reasons"
       # write new task number to MSP
@@ -273,18 +274,47 @@ def process_issue rmp_id, mst, force_new_task = false, is_group = false
     rmt = rm_get "/issues/#{rmt_id}.json", 'issue', "ERROR: could not find Redmine task ##{rmt_id} for #{mst.ID} '#{mst_name}'"
 
     #   check for changes
-    #     subject - Name, start_date - Start, due_date - Finish
+    #     to RM: subject - Name, parent_id - OutlineParent.Hyperlink, assigned_to_id - rmu_id_ok
+    #     to MSP: start_date - Start, due_date - Finish, estimated_hours - Work, sum of reports - ActualWork
+
+    # collect changes to RM
     changes={}
     changes['assigned_to_id'] = (rmu_id_ok || '') if rmu_id_ok != (rmt['assigned_to'] ? rmt['assigned_to']['id'] : nil)
     changes['subject'] = mst_name if rmt['subject'] != mst_name
-    d = mst.Start.strftime('%Y-%m-%d')
-    changes['start_date'] = d if rmt['start_date'] != d
-    d = mst.Finish.strftime('%Y-%m-%d')
-    changes['due_date'] = d if rmt['due_date'] != d
     rmt_papa_id_old = (rmt['parent'] ? rmt['parent']['id'] : '')
     rmt_papa_id_new = (rmt_papa ? rmt_papa['id'] : '')
     changes['parent_issue_id'] = rmt_papa_id_new if rmt_papa_id_new != rmt_papa_id_old
-    # apply changes
+
+    # collect changes to MSP
+    unless is_group
+      changes2={}
+      d = mst.Start.strftime('%Y-%m-%d')
+      changes2['start_date'] = rmt['start_date'] if rmt['start_date'] != d
+      d = mst.Finish.strftime('%Y-%m-%d')
+      changes2['due_date'] = rmt['due_date'] if rmt['due_date'] != d
+      # calculate estimate and spent hours
+      spent = (rmt['spent_hours'] || 0.0) * 60
+      changes2['spent_hours'] = spent if spent != mst.ActualWork
+      est = (rmt['estimated_hours'] || 0.0) * 60
+      if rmt['done_ratio'] > 0 && spent > 0
+        # we will consider priority of done ratio over estimated hours
+        est = spent * rmt['done_ratio'] / 100
+      elsif rmt['done_ratio'] == 0 && spent > 0
+        # done ratio is wrong
+        if est >= spent
+          # some discrepancy - we will fix done ratio in RM
+          changes['done_ratio'] = spent * 100 / est
+        else
+          # some error in estimate? we will ignore estimate and warn
+          puts est,spent
+          est = nil
+          puts "Warning: estimated hours less than spent hours, estimate will be ignored"
+        end
+      end
+      changes2['estimated_hours'] = est if est && est != mst.Work
+    end
+
+    # apply changes to RM
     if changes.empty?
       puts "No changes for Task Redmine ##{rmt_id} from MSP #{mst.ID} '#{mst_name}'"
     else
@@ -300,9 +330,28 @@ def process_issue rmp_id, mst, force_new_task = false, is_group = false
         puts "Updated task Redmine ##{rmt_id} from MSP #{mst.ID} '#{mst_name}' (#{changelist})"
       end
     end
-    unless is_group || (mst.PercentComplete == rmt['done_ratio'])
-      mst.PercentComplete = rmt['done_ratio']
-      puts "Updated Percent Complete for MSP task #{mst.ID} '#{mst_name}' from Redmine ##{rmt_id}"
+
+    # apply changes to MSP
+    unless is_group
+      if changes2.empty?
+        puts "No changes for MSP task #{mst.ID} '#{mst_name}'"
+      else
+        # apply changes
+        changelist2 = changes2.keys.join(', ')
+        if DRY_RUN
+          puts "Will update MSP task #{mst.ID} '#{mst_name}'  from Redmine ##{rmt_id} (#{changelist2})"
+        else
+          changes2.each do |k,v|
+            case k
+              when 'start_date'; mst.Start = Time.new *(v.split /\D+/ )
+              when 'due_date';        mst.Finish = Time.new *(v.split /\D+/ )
+              when 'spent_hours';     mst.ActualWork = v
+              when 'estimated_hours'; mst.Work = v
+            end
+          end
+          puts "Updated MSP task #{mst.ID} '#{mst_name}' from Redmine ##{rmt_id} (#{changelist2})"
+        end
+      end
     end
     set_mst_url mst, rmt['id']
 

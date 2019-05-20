@@ -2,12 +2,22 @@
 
 This script is intended to publish any exsisting MSP project to Redmine and get progress data back from Redmine.
 
-Redmine is simple, free and convenient for project team to keep tasks progress and states and to make reports.
+MS Project is very convenient for project creation:
+* editing big timelines in document mode 
+* managing inter-task links and relations
+* auto arranging task dates based on relations and resource availability
 
-P2R provides task and appointment updates to Redmine and puts actual start and finish dates and spent hours back to MSP.
-Start and finish are being obtained from task state changes.
+But is not intended at all for tracking progress and team members performance in self-service mode. 
+  
+From this point of view Redmine seems to be a very good addition to MS Project. It is simple, free, convenient and customizable web tool for project team to keep tasks progress and to make personal workhours reports.
 
-P2R allows to choose tasks and team members (resources) to publish to Redmine. 
+P2R is designed by the following use-case:
+* project manager marks tasks and resources (team members) for publishing and then runs P2R
+* P2R publishes new tasks with appointments to Redmine including start, finish and workhours estimate. Group tasks will also be published
+* project team members put actual start, finish, estimate and hours spent to their tasks in Redmine
+* project manager runs P2R periodically to get actual data back to MSP
+* P2R sets start, finish, estimate and spent hours in MSP according to Redmine data
+* project manager compares data with baselines and corrects remaining part of the projects as necessary
 
 ## MSP project preparation
 
@@ -50,7 +60,5 @@ Redmine issue (task) can be appointed to one team member only so P2R expects no 
 
 Working directory does not matter. You can run script itself (if you have ruby installed) or compiled .EXE file from downloads folder 
 (it does not require ruby installation). Compiled exe is just SFX archive with the same script plus necessary ruby binaries and libs.
-
-After creating new Redmine project P2R authomatically adds `redmine_project_id` key to settings (do not forget to save the project!).
 
 P2R sets 'Redmine Synchronization' task's dates to last synchronization dates on each run with execution. 
