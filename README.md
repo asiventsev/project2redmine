@@ -12,24 +12,16 @@ P2R allows to choose tasks and team members (resources) to publish to Redmine.
 ## MSP project preparation
 
 To get msp project ready for publishing to Redmine or updating already published:
-1. Choose Task custom text field for Redmine task ID, for example Text1.
-2. Put 0 in this field for tasks to be published to Redmine.
-3. Choose Resource custom text field for Redmine team member ID, for example, Text1. 
-(ID will be used to identify Redmine project team members which correspond to MSP resources.)
-(Please do not use localized names of custom fields, use english names like TextN.) 
-4. Set Redmine user IDs for resources to be used in Redmine as team members.
-(Memberships will be created authomatically. Ask Redmine admin for user IDs.)
-5. Create special task in MSP project named 'Redmine Synchronization' and put Redmine synchronization 
+1. P2R will keep Redmine task IDs in the Hyperlink attribute of MSP tasks. Put 0 to this field for tasks to be published to Redmine. P2R will publish these tasks to Redmine and change zeros to actual IDs and also will generate task URLs in HyperlinkAddress attribute so the hyperlink will be clickable. Do not forget to save the project!
+2. P2R will keep Redmine user IDs in the Hyperlink attribute of MSP tasks. Put Redmine user IDs to this field for Resources to be synchronized to Redmine. Redmine project memberships will be created authomatically. Ask Redmine admin for user IDs.
+3. Create special task in MSP project named 'Redmine Synchronization' and put Redmine synchronization 
 settings to its Notes in YAML format according to the example:
 
 <pre><code>redmine_host: 192.168.10.23
 redmine_port: 3500
 redmine_api_key: d1e693e7670b1fc79378441d485b9608e4c2dc4c
 redmine_project_uuid: uute
-task_redmine_id_field: Text1
-task_redmine_url_field: Text2
 task_default_redmine_tracker_id: 4
-resource_redmine_id_field: Text1
 resource_default_redmine_role_id: 4
 </code></pre>
 
@@ -40,11 +32,9 @@ If an 'Unprocessable Entry' error occurs on project creation it is probably due 
 
 Parameter `task_default_redmine_tracker_id` is not required. If you omit it then Redmine's default tracker will be set.
 
-Parameter `task_redmine_url_field` is not required. If you define it then URL to Remine issue will be put to this field for each sync task.
-
 If you want to connect your MSP project to existing Redmine project instead of creating new one, please do the following:
 
-1. Add parameter redmine_project_id to settings list. 
+1. Add parameter redmine_project_id to settings list and set it to Redmine project ID (not uuid!). 
 (It was not obvious how to get it from Redmine. Easy way is to get project in JSON format, for example, from URL `http://192.168.10.23:3500/projects/uute.json` for project described above.)
 2. Put real Redmine task IDs instead of 0 for tasks to be synchronized.
 

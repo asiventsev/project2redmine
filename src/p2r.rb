@@ -3,7 +3,7 @@
 #=====================================================================
 # Console Script for MS Project to Redmine synchronization
 #=====================================================================
-VER = '0.2 30/04/19'
+VER = '0.3 30/04/19'
 HDR = "Console Script for MS Project to Redmine synchronization v#{VER} (c) A. Siventsev 2019"
 
 require 'yaml'
@@ -56,7 +56,7 @@ rescue
 end
 
 rmp_id = $settings.delete 'redmine_project_id'
-missed_pars = %w(redmine_host redmine_api_key redmine_project_uuid task_redmine_id_field resource_redmine_id_field resource_default_redmine_role_id) - $settings.keys
+missed_pars = %w(redmine_host redmine_api_key redmine_project_uuid resource_default_redmine_role_id) - $settings.keys
 
 chk !missed_pars.empty?, "ERROR: following settings not found in 'Redmine Sysncronization' task: #{missed_pars.sort.join ', '}"
 
@@ -101,7 +101,7 @@ case re.code
         chk true, "ERROR: Redmine project id does not comply with redmine_project_id provided in settings"
       end
     else
-      chk true, "ERROR: suppose have to create new project '#{$uuid}' (because redmine_project_id is not provided) but found the project has been published already"
+      chk true, "ERROR: suppose have to create new project '#{$uuid}' (because redmine_project_id is not provided) but found the project with that uuid has been published already"
     end
   else
     chk true, "ERROR: #{re.code} #{re.message}"
@@ -151,15 +151,11 @@ end
 # some utils for msp custom fields editing
 #---------------------------------------------------------------------
 
-def build_mst_url(rmt_id); $settings['task_redmine_url_field'] ? "http://#{$settings['redmine_host']}:#{$settings['redmine_port']}/issues/#{rmt_id}" : nil; end
-def get_mst_url(mst); $settings['task_redmine_url_field'] ? eval("mst.#{$settings['task_redmine_url_field']}") : nil; end
 def set_mst_url(mst, rmt_id)
-  url=build_mst_url rmt_id
-  eval("mst.#{$settings['task_redmine_url_field']} = '#{url}'") if url
+  url="http://#{$settings['redmine_host']}:#{$settings['redmine_port']}/issues/#{rmt_id}"
+  mst.HyperlinkAddress = url
   return url
 end
-def get_mst_redmine_id(mst); eval("mst.#{$settings['task_redmine_id_field']}"); end
-def set_mst_redmine_id(mst, rmt_id); eval("mst.#{$settings['task_redmine_id_field']} = '#{rmt_id}'"); end
 
 #---------------------------------------------------------------------
 # task (issue) processing util
@@ -168,10 +164,10 @@ def set_mst_redmine_id(mst, rmt_id); eval("mst.#{$settings['task_redmine_id_fiel
 $rmts={} # issues processed
 $rmus=[] # memberships processed
 
-def process_issue rmp_id, mst, force_new_task = false
+def process_issue rmp_id, mst, force_new_task = false, is_group = false
 
   mst_name = mst.Name.clone.encode 'UTF-8'
-  rmt_id = eval "mst.#{$settings['task_redmine_id_field']}"
+  rmt_id = mst.Hyperlink
   return nil unless rmt_id =~ /^\s*\d+\s*$/ # task not marked for sync
   rmt_id = rmt_id.to_i
 
@@ -183,29 +179,28 @@ def process_issue rmp_id, mst, force_new_task = false
   mst_papa = mst.OutlineParent
   rmt_papa = nil
   unless mst_papa.UniqueID == 0 # suppose project summary task has UniqueID = 0
-    rmt_papa_id = eval "mst_papa.#{$settings['task_redmine_id_field']}"
+    rmt_papa_id = mst_papa.Hyperlink
     if rmt_papa_id =~ /^\s*\d+\s*$/
       rmt_papa_id = rmt_papa_id.to_i
       rmt_papa = $rmts[rmt_papa_id]
       unless rmt_papa
-        rmt_papa = process_issue rmp_id, mst_papa, force_new_task
+        rmt_papa = process_issue rmp_id, mst_papa, force_new_task, true
       end
     else
       rmt_papa_id = 0
-      eval "mst_papa.#{$settings['task_redmine_id_field']} = '0'"
-      rmt_papa = process_issue rmp_id, mst_papa
+      mst_papa.Hyperlink = '0'
+      rmt_papa = process_issue rmp_id, mst_papa, false, true
     end
 
   end
 
   # check task resource appointment
   #   we expect not more than one synchronizable appointment
-  rmu_id_field = "msr.#{$settings['resource_redmine_id_field']}"
   rmu_id_ok = nil
   msr_ok = nil
   (1..mst.Resources.Count).each do |j|
     next unless msr = mst.Resources(j)
-    rmu_id = eval(rmu_id_field)
+    rmu_id = msr.Hyperlink
     next unless rmu_id =~ /^\s*\d+\s*$/ # resource not marked for sync
     chk rmu_id_ok, "ERROR: more than one sync resource for MSP task #{mst.ID} '#{mst_name}'"
     rmu_id = rmu_id.to_i
@@ -252,10 +247,11 @@ def process_issue rmp_id, mst, force_new_task = false
           assigned_to_id: rmu_id_ok, tracker_id: $dflt_tracker_id,
           parent_issue_id: (rmt_papa ? rmt_papa['id'] : '')
       }
+      rmt['done_ratio'] = mst.PercentComplete unless is_group
       rmt = rm_create '/issues.json', 'issue', rmt,
                       "ERROR: could not create Redmine task from #{mst.ID} '#{mst_name}' for some reasons"
       # write new task number to MSP
-      set_mst_redmine_id mst, rmt['id']
+      mst.Hyperlink = rmt['id']
       set_mst_url mst, rmt['id']
       puts "Created task Redmine ##{rmt['id']} from MSP #{mst.ID} '#{mst_name}'"
 
@@ -304,6 +300,10 @@ def process_issue rmp_id, mst, force_new_task = false
         puts "Updated task Redmine ##{rmt_id} from MSP #{mst.ID} '#{mst_name}' (#{changelist})"
       end
     end
+    unless is_group || (mst.PercentComplete == rmt['done_ratio'])
+      mst.PercentComplete = rmt['done_ratio']
+      puts "Updated Percent Complete for MSP task #{mst.ID} '#{mst_name}' from Redmine ##{rmt_id}"
+    end
     set_mst_url mst, rmt['id']
 
     $rmts[rmt['id']] = rmt
@@ -324,7 +324,8 @@ def process_issues rmp_id, force_new_task = false
     # check msp task
     next unless mst = $msp.Tasks(i)
 
-    process_issue rmp_id, mst, force_new_task
+    is_group = (mst.OutlineChildren.Count > 0)
+    process_issue rmp_id, mst, force_new_task, is_group
 
   end
 end
@@ -332,6 +333,8 @@ end
 #=====================================================================
 # main work cycle
 #=====================================================================
+
+settings_task.Start = Time.now unless DRY_RUN
 
 if rmp_id
   #=====================================================================
@@ -369,6 +372,8 @@ end
 
 load_team
 process_issues (rmp_id || rmp['id']), rmp_id.nil?
+
+settings_task.Finish = Time.now unless DRY_RUN
 
 puts "\n\n"
 
