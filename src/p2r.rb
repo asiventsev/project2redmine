@@ -3,7 +3,7 @@
 #=====================================================================
 # Console Script for MS Project to Redmine synchronization
 #=====================================================================
-VER = '0.3 30/04/19'
+VER = '0.3 22/05/19'
 HDR = "Console Script for MS Project to Redmine synchronization v#{VER} (c) A. Siventsev 2019"
 
 require 'yaml'
@@ -223,7 +223,7 @@ def process_issue rmp_id, mst, force_new_task = false, is_group = false
         data = {user_id: rmu_id, role_ids: [$dflt_role_id]}
         member = rm_create "/projects/#{$uuid}/memberships.json", 'membership', data,
                          "ERROR: could not create Redmine project membership for user #{rmu_id}"
-        puts "New membership created: #{rmu_id}"
+        puts "New membership created for user: #{rmu_id}"
         $team[rmu_id] = member
       end
       rmu_id_ok = rmu_id
@@ -234,7 +234,7 @@ def process_issue rmp_id, mst, force_new_task = false, is_group = false
     rmu_name = $team[rmu_id_ok]['user']['name']
     msr_name = msr_ok.Name.clone.encode 'UTF-8'
     unless rmu_name == msr_name
-      puts "WARNING: membership ID=#{rmu_id_ok} name '#{rmu_name}' does not correspond to MSP resource name '#{msr_name}' (task ##{rmt_id} for #{mst.ID} '#{mst_name}')"
+      puts "WARNING: RM user ID=#{rmu_id_ok} name '#{rmu_name}' does not correspond to MSP resource name '#{msr_name}' (task ##{rmt_id} for #{mst.ID} '#{mst_name}')"
     end
   end
 
@@ -298,7 +298,7 @@ def process_issue rmp_id, mst, force_new_task = false, is_group = false
       est = (rmt['estimated_hours'] || 0.0) * 60
       if rmt['done_ratio'] > 0 && spent > 0
         # we will consider priority of done ratio over estimated hours
-        est = spent * rmt['done_ratio'] / 100
+        est = spent * 100 / rmt['done_ratio']
       elsif rmt['done_ratio'] == 0 && spent > 0
         # done ratio is wrong
         if est >= spent
@@ -306,7 +306,6 @@ def process_issue rmp_id, mst, force_new_task = false, is_group = false
           changes['done_ratio'] = spent * 100 / est
         else
           # some error in estimate? we will ignore estimate and warn
-          puts est,spent
           est = nil
           puts "Warning: estimated hours less than spent hours, estimate will be ignored"
         end
