@@ -12,8 +12,10 @@ But is not intended at all for tracking progress and team members performance in
 From this point of view Redmine seems to be a very good addition to MS Project. It is simple, free, convenient and customizable web tool for project team to keep tasks progress and to make personal workhours reports.
 
 P2R is designed by the following use-case:
-* project manager marks tasks and resources (team members) for publishing and then runs P2R
-* P2R publishes new tasks with appointments to Redmine including start, finish and workhours estimate. Group tasks will also be published
+* project manager adds Redmine access settings to MS Project file 
+* project manager marks tasks and resources (team members) in MS Project file for publishing to Redmine and then runs P2R.
+* P2R creates new project in Redmine and adds team memberships for MSP project resources marked as Redmine users. (Connecting to existing project is also possible.) 
+* P2R publishes new tasks with appointments to Redmine including start, finish and workhours estimate. Group tasks will also be published. (Connecting to existing tasks is also possible.)
 * project team members put actual start, finish, estimate and hours spent to their tasks in Redmine
 * project manager runs P2R periodically to get actual data back to MSP
 * P2R sets start, finish, estimate and spent hours in MSP according to Redmine data
