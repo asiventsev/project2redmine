@@ -48,18 +48,18 @@ settings_task = nil
     break
   end
 end
-chk !settings_task, 'ERROR: task with name \'Redmine Sysncronization\' was not found in the project.'
+chk !settings_task, 'ERROR: task with name \'Redmine Synchronization\' was not found in the project.'
 
 begin
   $settings = YAML.load settings_task.Notes.to_s.gsub("\r", "\n")
 rescue
-  chk true, 'ERROR: could not extract settiings from Notes in \'Redmine Sysncronization\' task (YAML format expected)'
+  chk true, 'ERROR: could not extract settiings from Notes in \'Redmine Synchronization\' task (YAML format expected)'
 end
 
 rmp_id = $settings.delete 'redmine_project_id'
 missed_pars = %w(redmine_host redmine_api_key redmine_project_uuid resource_default_redmine_role_id) - $settings.keys
 
-chk !missed_pars.empty?, "ERROR: following settings not found in 'Redmine Sysncronization' task: #{missed_pars.sort.join ', '}"
+chk !missed_pars.empty?, "ERROR: following settings not found in 'Redmine Synchronization' task: #{missed_pars.sort.join ', '}"
 
 #---------------------------------------------------------------------
 # check Redmine project availability
